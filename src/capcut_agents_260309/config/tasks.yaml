@@ -1,0 +1,66 @@
+sync_task:
+  description: >
+    작업 폴더({video_folder_path})에 있는 총 {video_count}개의 영상 파일들({video_files})을 분석하세요.
+    1번 카메라를 기준으로 나머지 카메라들의 오디오 딜레이를 밀리초(ms) 단위로 정확히 도출하세요.
+  expected_output: >
+    각 카메라의 파일명과 동기화를 위한 오프셋(ms)이 기록된 JSON 형식의 데이터.
+  agent: sync_engineer
+
+analysis_task:
+  description: >
+    작업 폴더({video_folder_path})에 있는 영상 파일들({video_files}) 중 1번 카메라(또는 기준 영상)의 절대 경로를 파악하세요.
+    파악한 영상 경로를 반드시 'Video_STT_Tool' 도구에 입력하여 영상의 음성을 텍스트로 변환(STT)하세요.
+    변환된 텍스트를 문장 단위로 나누고, 타임스탬프를 기록하세요.
+    화자의 감정(예: 흥분, 웃음, 진지함)과 중요도(A, B, C)를 태깅하세요.
+  expected_output: >
+    타임스탬프, 텍스트 원문, 감정 태그, 중요도가 포함된 시간순 스크립트 리스트.
+  agent: script_analyst
+
+story_task:
+  description: >
+    시간순 스크립트와 감정 태그 리포트를 정독하고 다음을 수행하세요:
+    1. '메인 테마'와 '기획 의도' 한 줄 정의.
+    2. 기승전결(도입부, 전개, 클라이맥스, 마무리) 타임스탬프 지정.
+    3. '최고의 1분(클라이맥스)'을 짚어내고 이유 설명.
+    4. 사용자의 특별 연출 지시사항 최우선 반영: [{user_prompt}]
+  expected_output: >
+    메인 테마, 기획 의도, 기승전결 타임라인, '최고의 1분'이 명시된 [스토리보드 및 연출 기획서].
+  agent: story_director
+
+visual_task:
+  description: >
+    작업 폴더({video_folder_path})에 있는 영상 파일들({video_files}) 중 분석할 대상의 절대 경로를 파악하세요.
+    파악한 영상 경로를 반드시 'Video_Vision_Tool' 도구에 입력하여 화면 프레임을 분석하고 다음을 수행하세요:
+    1. 샷 종류(풀샷, 바스트샷, 클로즈업) 분류.
+    2. NG 구간 여부 판별.
+    3. 세로형(9:16) 크롭(Crop)을 위한 중심 좌표 가이드 제시.
+  expected_output: >
+    시간대별 구도 상태, NG 여부, 크롭 가이드가 정리된 시각 분석 리포트.
+  agent: visual_director
+
+editing_task:
+  description: >
+    스크립트 분석 리포트와 시각 분석 리포트를 종합하여 최종 컷 편집 지시서(EDL)를 작성하세요.
+    규칙: 중요도 A는 클로즈업, 일반 설명은 풀/바스트샷, NG 구간 제외, 컷 전환 최소 2초 유지.
+    [사용자 지시사항]: {user_prompt}
+  expected_output: >
+    [시작, 종료, 카메라 번호, 사유]가 나열된 최종 컷 편집 리스트(EDL).
+  agent: main_pd
+
+motion_task:
+  description: >
+    EDL을 바탕으로 디자인 요소를 추가하세요.
+    1. 자막 2~3어절 줄바꿈.
+    2. 핵심 키워드에 강조 색상(#FFD700) 부여.
+    3. 감정 고조/컷 전환 시 이펙트(zoom_in, shake 등) 추가.
+  expected_output: >
+    자막 배열, 색상, 이펙트가 통합된 '마스터 편집 기획서(JSON)'.
+  agent: motion_designer
+
+capcut_export_task:
+  description: >
+    '마스터 편집 기획서'를 바탕으로 CapCut이 이해할 수 있는 구조를 만들고,
+    반드시 'CapCut_Editor' 도구를 사용하여 로컬 MCP 서버로 데이터를 전송해 실행하세요.
+  expected_output: >
+    캡컷 MCP 서버의 응답 결과 메시지 및 실행 완료 보고서.
+  agent: capcut_engineer

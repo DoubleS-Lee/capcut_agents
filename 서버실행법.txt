@@ -1,0 +1,5 @@
+python mcp_server.py
+
+crewai run
+
+uv run capcut_agents_260309 --cmd "가장 임팩트 있는 부분 찾아서 1분짜리 영상 만들어줘"

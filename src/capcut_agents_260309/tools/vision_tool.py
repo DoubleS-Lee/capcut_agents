@@ -14,8 +14,8 @@ class VisionToolInput(BaseModel):
 class VisionTool(BaseTool):
     name: str = "Video_Vision_Tool"
     description: str = (
-        "비디오 파일 경로를 받아 영상의 도입, 중반, 결말의 주요 프레임을 추출하고 "
-        "AI(Gemini Vision)를 통해 화면 구도(풀샷, 바스트샷 등), 초점 나감 등의 NG 컷 판별, "
+        "비디오 파일 경로를 받아 영상의 중간 지점(50%) 프레임 1장을 추출하고 "
+        "AI(Gemini Vision)를 통해 화면 구도(풀샷, 바스트샷 등) 및 "
         "크롭(Crop) 가이드를 분석하여 리포트로 반환합니다."
     )
     args_schema: Type[BaseModel] = VisionToolInput
@@ -32,18 +32,17 @@ class VisionTool(BaseTool):
 
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # 2. 영상의 3개 지점(10%, 50%, 90%)에서 대표 프레임 추출
-            target_frames = [int(total_frames * 0.1), int(total_frames * 0.5), int(total_frames * 0.9)]
+            # 2. 영상의 중간 지점(50%)에서 대표 프레임 1장 추출
+            target_frame = int(total_frames * 0.5)
             encoded_images = []
 
-            for frame_idx in target_frames:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-                ret, frame = cap.read()
-                if ret:
-                    # 이미지를 JPEG로 압축 후 Base64 문자열로 인코딩 (LLM에게 전송하기 위함)
-                    _, buffer = cv2.imencode('.jpg', frame)
-                    img_str = base64.b64encode(buffer).decode('utf-8')
-                    encoded_images.append(img_str)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+            ret, frame = cap.read()
+            if ret:
+                # 이미지를 JPEG로 압축 후 Base64 문자열로 인코딩 (LLM에게 전송하기 위함)
+                _, buffer = cv2.imencode('.jpg', frame)
+                img_str = base64.b64encode(buffer).decode('utf-8')
+                encoded_images.append(img_str)
 
             cap.release()
 
@@ -60,11 +59,10 @@ class VisionTool(BaseTool):
             # 4. 프롬프트와 이미지 데이터를 묶어서 전송
             prompt_text = (
                 "당신은 영상 편집을 위한 수석 카메라 및 비주얼 감독입니다. "
-                "첨부된 3장의 이미지는 하나의 영상에서 시간순(초반, 중반, 후반)으로 추출된 프레임들입니다. "
-                "다음 세 가지를 분석하여 리포트를 작성해 주세요:\n"
+                "첨부된 이미지는 영상의 중간 지점에서 추출된 대표 프레임입니다. "
+                "다음 두 가지를 분석하여 리포트를 작성해 주세요:\n"
                 "1. 샷 종류 분류: 전체적인 구도가 풀샷(Full Shot), 바스트샷(Bust Shot), 클로즈업(Close-up) 중 어디에 해당하는지 분석하세요.\n"
-                "2. NG 컷 판별: 화면이 심하게 흔들리거나, 피사체의 초점이 나갔거나, 피사체가 프레임 밖으로 벗어난 NG 구간으로 보이는 부분이 있는지 판별하세요.\n"
-                "3. 크롭(Crop) 가이드: 만약 숏폼(9:16 비율)으로 크롭한다면, 주요 피사체(인물 등)를 중심으로 어느 부분을 잘라내야 할지 대략적인 가이드(예: 중앙 중심, 왼쪽 치우침 등)를 제시해 주세요."
+                "2. 크롭(Crop) 가이드: 만약 숏폼(9:16 비율)으로 크롭한다면, 주요 피사체(인물 등)를 중심으로 어느 부분을 잘라내야 할지 대략적인 가이드(예: 중앙 중심, 왼쪽 치우침 등)를 제시해 주세요."
             )
             
             content = [{"type": "text", "text": prompt_text}]

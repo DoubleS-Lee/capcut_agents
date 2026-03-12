@@ -3,6 +3,7 @@ from crewai.project import CrewBase, agent, crew, task
 from .tools.custom_tool import CapCutTool # 우리가 만든 캡컷 연동 도구
 from .tools.stt_tool import STTTool # 새로 만든 STT 도구 추가
 from .tools.vision_tool import VisionTool # 새로 만든 Vision 도구 추가
+from .tools.sync_tool import SyncTool # 새로 만든 Sync 도구 추가
 import os
 from dotenv import load_dotenv
 
@@ -25,14 +26,18 @@ class CapcutAgents260309():
 
     @agent
     def sync_engineer(self) -> Agent:
-        return Agent(config=self.agents_config['sync_engineer'], llm=self.gemini, verbose=True)
+        return Agent(
+            config=self.agents_config['sync_engineer'], 
+            llm=self.gemini, 
+            tools=[SyncTool()], # 동기화 엔지니어에게 SyncTool을 쥐여줍니다!
+            verbose=True
+        )
 
     @agent
     def script_analyst(self) -> Agent:
         return Agent(
             config=self.agents_config['script_analyst'], 
             llm=self.gemini, 
-            tools=[STTTool()], # 스크립트 분석가에게 STT 귀를 달아줍니다!
             verbose=True
         )
 
@@ -78,6 +83,10 @@ class CapcutAgents260309():
     @task
     def analysis_task(self) -> Task:
         return Task(config=self.tasks_config['analysis_task'])
+
+    @task
+    def topic_task(self) -> Task:
+        return Task(config=self.tasks_config['topic_task'])
 
     @task
     def story_task(self) -> Task:

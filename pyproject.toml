@@ -11,7 +11,12 @@ dependencies = [
     "moviepy>=1.0.3",
     "SpeechRecognition>=3.10.0",
     "opencv-python>=4.8.0.76",
-    "flask"
+    "flask",
+    "scipy>=1.15.3",
+    "numpy>=2.2.6",
+    "uuid>=1.30",
+    "faster-whisper>=1.2.1",
+    "pyannote-audio>=4.0.4",
 ]
 
 [project.scripts]

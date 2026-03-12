@@ -5,8 +5,14 @@ import requests # MCP 서버와 통신하기 위해 필요합니다
 
 class CapCutToolInput(BaseModel):
     """캡컷 도구에 전달할 데이터의 형식입니다."""
-    command: str = Field(..., description="캡컷에서 실행할 구체적인 편집 명령어 (예: '자막 추가', '컷 편집', '줌 인')")
-    details: str = Field(..., description="명령어에 대한 상세 내용 (예: '자막 내용을 안녕하세요로 설정', '30초 지점 컷')")
+    command: str = Field(..., description="캡컷에서 실행할 명령어 (예: 'create_draft')")
+    details: str = Field(
+        ..., 
+        description="""
+        명령어에 대한 상세 내용. 반드시 아래 JSON 형식을 텍스트로 변환하여 보내야 합니다.
+        예시: {"videos": [{"path": "C:/video.mp4", "start_time": 0.0, "end_time": 5.5}], "texts": [{"content": "자막", "start_time": 1.0, "end_time": 3.0}]}
+        """
+    )
 
 class CapCutTool(BaseTool):
     name: str = "CapCut_Editor"

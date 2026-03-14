@@ -8,3 +8,6 @@ python mcp_server.py
 
 에이전트 실행
 uv run run_crew --cmd "가장 임팩트 있는 부분을 찾아서 1분짜리 영상으로 편집해줘"
+
+
+

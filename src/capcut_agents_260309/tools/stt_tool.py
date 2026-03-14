@@ -20,6 +20,10 @@ import tempfile
 from faster_whisper import WhisperModel
 from pyannote.audio import Pipeline
 import torch
+import warnings
+
+# Pyannote 화자 분리 중 발생하는 PyTorch UserWarning(std(): degrees of freedom is <= 0) 무시
+warnings.filterwarnings("ignore", message=".*degrees of freedom is <= 0.*")
 
 class STTToolInput(BaseModel):
     """STT 도구에 전달할 데이터의 형식입니다."""
@@ -72,10 +76,9 @@ class STTTool(BaseTool):
                 try:
                     # Note: pyannote.audio 3.1.1 requires a huggingface token for the speaker diarization pipeline
                     # If this fails, it's likely due to missing auth. We will fallback to Whisper only if it fails.
-                    import os
                     hf_token = os.getenv("HUGGINGFACE_TOKEN") # 또는 사용자에게 토큰 요청 필요
                     if hf_token:
-                        pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=hf_token)
+                        pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", token=hf_token)
                         if torch.cuda.is_available():
                             pipeline.to(torch.device("cuda"))
                         _diarization_pipeline_cache = pipeline
@@ -94,6 +97,10 @@ class STTTool(BaseTool):
             if _diarization_pipeline_cache:
                 print("[STT] 화자 분리 분석 중...", flush=True)
                 diarization_result = _diarization_pipeline_cache(audio_path)
+                
+                # pyannote.audio v4.0 이상에서는 DiarizeOutput 객체를 반환하므로 내부 Annotation 객체로 변환
+                if hasattr(diarization_result, "speaker_diarization"):
+                    diarization_result = diarization_result.speaker_diarization
 
             import json
             result_data = {

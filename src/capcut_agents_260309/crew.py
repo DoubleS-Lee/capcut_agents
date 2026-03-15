@@ -1,9 +1,6 @@
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from .tools.custom_tool import CapCutTool # 우리가 만든 캡컷 연동 도구
-from .tools.stt_tool import STTTool # 새로 만든 STT 도구 추가
-from .tools.vision_tool import VisionTool # 새로 만든 Vision 도구 추가
-from .tools.sync_tool import SyncTool # 새로 만든 Sync 도구 추가
 import os
 from dotenv import load_dotenv
 
@@ -11,7 +8,7 @@ load_dotenv()
 
 @CrewBase
 class CapcutAgents260309():
-    """CapCut Video Editing Automation Crew"""
+    """감탄사 및 리액션 클립 추출 전용 시스템"""
 
     def __init__(self):
         # 최신 CrewAI 방식의 LLM 설정
@@ -25,46 +22,15 @@ class CapcutAgents260309():
     # ==========================================
 
     @agent
-    def sync_engineer(self) -> Agent:
+    def emotion_scout(self) -> Agent:
         return Agent(
-            config=self.agents_config['sync_engineer'], 
-            llm=self.gemini, 
-            tools=[SyncTool()], # 동기화 엔지니어에게 SyncTool을 쥐여줍니다!
-            verbose=True
-        )
-
-    @agent
-    def script_analyst(self) -> Agent:
-        return Agent(
-            config=self.agents_config['script_analyst'], 
+            config=self.agents_config['emotion_scout'], 
             llm=self.gemini, 
             verbose=True
         )
-
-    @agent
-    def story_director(self) -> Agent:
-        return Agent(config=self.agents_config['story_director'], llm=self.gemini, verbose=True)
-
-    @agent
-    def visual_director(self) -> Agent:
-        return Agent(
-            config=self.agents_config['visual_director'], 
-            llm=self.gemini, 
-            tools=[VisionTool()], # 비주얼 디렉터에게 시각 분석 도구(눈)를 장착!
-            verbose=True
-        )
-
-    @agent
-    def main_pd(self) -> Agent:
-        return Agent(config=self.agents_config['main_pd'], llm=self.gemini, verbose=True)
-
-    @agent
-    def motion_designer(self) -> Agent:
-        return Agent(config=self.agents_config['motion_designer'], llm=self.gemini, verbose=True)
 
     @agent
     def capcut_engineer(self) -> Agent:
-        # 🚨 중요: 캡컷 도구(손)는 이 천재 개발자 에이전트에게만 쥐여줍니다!
         return Agent(
             config=self.agents_config['capcut_engineer'],
             llm=self.gemini,
@@ -77,32 +43,8 @@ class CapcutAgents260309():
     # ==========================================
     
     @task
-    def sync_task(self) -> Task:
-        return Task(config=self.tasks_config['sync_task'])
-
-    @task
-    def analysis_task(self) -> Task:
-        return Task(config=self.tasks_config['analysis_task'])
-
-    @task
-    def topic_task(self) -> Task:
-        return Task(config=self.tasks_config['topic_task'])
-
-    @task
-    def story_task(self) -> Task:
-        return Task(config=self.tasks_config['story_task'])
-
-    @task
-    def visual_task(self) -> Task:
-        return Task(config=self.tasks_config['visual_task'])
-
-    @task
-    def editing_task(self) -> Task:
-        return Task(config=self.tasks_config['editing_task'])
-
-    @task
-    def motion_task(self) -> Task:
-        return Task(config=self.tasks_config['motion_task'])
+    def emotion_detection_task(self) -> Task:
+        return Task(config=self.tasks_config['emotion_detection_task'])
 
     @task
     def capcut_export_task(self) -> Task:
@@ -117,6 +59,6 @@ class CapcutAgents260309():
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
-            process=Process.sequential, # 위에서 아래로 순서대로 작업 진행
+            process=Process.sequential, 
             verbose=True,
         )

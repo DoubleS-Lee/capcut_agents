@@ -7,10 +7,11 @@ class CapCutToolInput(BaseModel):
     """캡컷 도구에 전달할 데이터의 형식입니다."""
     command: str = Field(..., description="캡컷에서 실행할 명령어 (예: 'create_draft')")
     details: str = Field(
-        ..., 
+        ...,
         description="""
-        명령어에 대한 상세 내용. 반드시 아래 JSON 형식을 텍스트로 변환하여 보내야 합니다.
-        예시: {"videos": [{"path": "C:/video.mp4", "start_time": 0.0, "end_time": 5.5}], "texts": [{"content": "자막", "start_time": 1.0, "end_time": 3.0}]}
+        명령어에 대한 상세 내용. 반드시 아래 clips JSON 형식을 문자열로 보내야 합니다.
+        예시: {"clips": [{"path": "C:/video.mp4", "start_time": 10.0, "end_time": 13.5, "content": "[SPEAKER_00] 와 대박이야!"}]}
+        clips 배열 안에 각 구간을 순서대로 나열하세요. videos/texts 키는 사용하지 마세요.
         """
     )
 

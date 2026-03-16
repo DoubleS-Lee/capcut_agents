@@ -1,14 +1,7 @@
-대본 추출
-uv run python extract_stt.py
-
-
-mcp서버 가동
+1. mcp서버 가동 (터미널 1)
 python mcp_server.py
 
+2. 에이전트 실행 (터미널 2)
+uv run run_crew --cmd "기쁨, 환희, 감동의 감탄사와 리액션이 있는 장면을 편집해서 남겨줘"
 
-에이전트 실행
-uv run run_crew --cmd "가장 임팩트 있는 부분을 찾아서 1분짜리 영상으로 편집해줘"
-
-
-
-uv run run_crew --cmd "기쁨, 환희, 감동의 감탄사와 리액션이 있는 장면을 편집해서  남겨줘"
+※ 대본(stt_result.json)이 없으면 자동으로 추출 후 진행됨

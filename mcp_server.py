@@ -17,6 +17,79 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "reference", "com.lveditor.draft", "0226")
 OUTPUT_BASE_DIR = os.environ.get("CAPCUT_OUTPUT_DIR") or os.path.join(BASE_DIR, "output")
 
+# CapCut root_meta_info.json 경로 (사용자 AppData 기준 자동 탐지)
+def _find_capcut_meta():
+    appdata = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~\\AppData\\Local")
+    path = os.path.join(appdata, "CapCut", "User Data", "Projects",
+                        "com.lveditor.draft", "root_meta_info.json")
+    return path if os.path.exists(path) else None
+
+def register_draft_in_capcut(draft_id, draft_name, draft_fold_path,
+                              draft_json_file, draft_root_path, duration_mu):
+    """생성된 프로젝트를 CapCut의 root_meta_info.json에 등록한다."""
+    meta_file = _find_capcut_meta()
+    if not meta_file:
+        print("[서버] CapCut root_meta_info.json 미발견 — 등록 생략")
+        return
+
+    try:
+        with open(meta_file, 'r', encoding='utf-8') as f:
+            root_meta = json.load(f)
+    except Exception as e:
+        print(f"[서버] root_meta_info 읽기 실패: {e}")
+        return
+
+    now_mu = int(datetime.now().timestamp() * 1_000_000)
+    entry = {
+        "cloud_draft_cover": False,
+        "cloud_draft_sync": False,
+        "draft_cloud_last_action_download": False,
+        "draft_cloud_purchase_info": "",
+        "draft_cloud_template_id": "",
+        "draft_cloud_tutorial_info": "",
+        "draft_cloud_videocut_purchase_info": "",
+        "draft_cover": os.path.join(draft_fold_path, "draft_cover.jpg").replace("\\", "/"),
+        "draft_fold_path": draft_fold_path.replace("\\", "/"),
+        "draft_id": draft_id,
+        "draft_is_ai_shorts": False,
+        "draft_is_cloud_temp_draft": False,
+        "draft_is_invisible": False,
+        "draft_is_web_article_video": False,
+        "draft_json_file": draft_json_file.replace("\\", "/"),
+        "draft_name": draft_name,
+        "draft_new_version": "",
+        "draft_root_path": draft_root_path.replace("\\", "/"),
+        "draft_timeline_materials_size": 0,
+        "draft_type": "",
+        "draft_web_article_video_enter_from": "",
+        "streaming_edit_draft_ready": True,
+        "tm_draft_cloud_completed": "",
+        "tm_draft_cloud_entry_id": -1,
+        "tm_draft_cloud_modified": 0,
+        "tm_draft_cloud_parent_entry_id": -1,
+        "tm_draft_cloud_space_id": -1,
+        "tm_draft_cloud_user_id": -1,
+        "tm_draft_create": now_mu,
+        "tm_draft_modified": now_mu,
+        "tm_draft_removed": 0,
+        "tm_duration": duration_mu,
+    }
+
+    # 중복 제거 후 맨 앞에 삽입 (최신순)
+    root_meta.setdefault("all_draft_store", [])
+    root_meta["all_draft_store"] = [
+        e for e in root_meta["all_draft_store"]
+        if e.get("draft_id") != draft_id
+    ]
+    root_meta["all_draft_store"].insert(0, entry)
+
+    try:
+        with open(meta_file, 'w', encoding='utf-8') as f:
+            json.dump(root_meta, f, ensure_ascii=False, indent=2)
+        print(f"[서버] CapCut에 프로젝트 등록 완료: {draft_name}")
+    except Exception as e:
+        print(f"[서버] root_meta_info 쓰기 실패: {e}")
+
 video_metadata_cache = {}
 
 def get_video_metadata(file_path):
@@ -418,15 +491,16 @@ def create_draft():
 
         # 8. draft_meta_info.json 업데이트
         meta_path = os.path.join(new_draft_dir, "draft_meta_info.json")
+        now_mu = int(datetime.now().timestamp() * 1_000_000)
         meta_info = {
             "draft_name": draft_name,
             "draft_id": str(uuid.uuid4()).upper(),
             "draft_fold_path": new_draft_dir.replace("\\", "/"),
             "draft_json_file": content_path.replace("\\", "/"),
-            "draft_root_path": OUTPUT_BASE_DIR.replace("\\", "/"),
+            "draft_root_path": effective_output.replace("\\", "/"),
             "tm_duration": cur_time,
-            "tm_draft_create": int(datetime.now().timestamp() * 1_000_000),
-            "tm_draft_modified": int(datetime.now().timestamp() * 1_000_000),
+            "tm_draft_create": now_mu,
+            "tm_draft_modified": now_mu,
             "draft_type": "",
             "draft_timeline_materials_size": 0,
             "cloud_draft_sync": False,
@@ -439,6 +513,18 @@ def create_draft():
         print(f"[성공] 프로젝트 생성: {new_draft_dir}")
         print(f"  - 비디오 클립: {len(video_track['segments'])}개")
         print(f"  - 자막: {len(text_track['segments'])}개")
+
+        # CapCut UI에 즉시 표시되도록 root_meta_info.json에 등록
+        draft_id_final = str(uuid.uuid4()).upper()
+        register_draft_in_capcut(
+            draft_id=draft_id_final,
+            draft_name=draft_name,
+            draft_fold_path=new_draft_dir,
+            draft_json_file=content_path,
+            draft_root_path=effective_output,
+            duration_mu=cur_time,
+        )
+
         return jsonify({"status": "success", "path": new_draft_dir}), 200
 
     except Exception as e:

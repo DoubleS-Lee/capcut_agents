@@ -662,6 +662,7 @@ class App(TkinterDnD.Tk):
             selected_speaker=self._speaker_var.get(),
             output_dir=self._output_dir.get(),
             stt_data=stt_data,
+            video_paths=list(self._video_paths),
             progress_cb=self._log,
         )
 

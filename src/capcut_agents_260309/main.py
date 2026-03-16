@@ -139,9 +139,11 @@ def run():
 
 def run_programmatic(video_folder: str, cmd: str, selected_speaker: str,
                      output_dir: str = "", stt_data: str = "",
+                     video_paths: list = None,
                      progress_cb=None):
     """
     GUI에서 직접 호출하는 함수. input() 없이 모든 파라미터를 인수로 받음.
+    video_paths: GUI에서 선택한 특정 파일 경로 목록. 없으면 stt_data의 file 필드로 추론.
     progress_cb(message): 로그 메시지를 GUI로 전달하는 콜백.
     """
     import os, json
@@ -155,16 +157,6 @@ def run_programmatic(video_folder: str, cmd: str, selected_speaker: str,
         os.environ["CAPCUT_OUTPUT_DIR"] = output_dir
 
     abs_video_folder = os.path.abspath(video_folder).replace("\\", "/")
-    video_files = [f for f in os.listdir(abs_video_folder)
-                   if f.lower().endswith((".mp4", ".mov"))]
-    if not video_files:
-        log(f"[에러] '{abs_video_folder}' 폴더에 영상 파일이 없습니다.")
-        return
-
-    file_list_str = ", ".join(video_files)
-    abs_file_paths_str = ", ".join(
-        os.path.join(abs_video_folder, f).replace("\\", "/") for f in video_files
-    )
 
     # stt_data가 없으면 파일에서 읽기
     if not stt_data:
@@ -176,12 +168,33 @@ def run_programmatic(video_folder: str, cmd: str, selected_speaker: str,
             log("[에러] stt_result.json 파일을 찾을 수 없습니다. 먼저 STT를 실행하세요.")
             return
 
+    # abs_video_paths: GUI 선택 파일 → stt_data의 file 필드 → 폴더 전체 순으로 결정
+    if video_paths:
+        abs_file_paths_str = ", ".join(
+            os.path.abspath(p).replace("\\", "/") for p in video_paths
+        )
+    else:
+        # STT JSON에서 파일명 추출하여 단일 경로만 전달 (에이전트 오인 방지)
+        try:
+            stt_obj = json.loads(stt_data)
+            stt_file = stt_obj.get("file", "")
+            if stt_file:
+                abs_file_paths_str = os.path.join(abs_video_folder, stt_file).replace("\\", "/")
+            else:
+                raise ValueError("file 필드 없음")
+        except Exception:
+            # 폴더 전체 폴백
+            video_files_all = [f for f in os.listdir(abs_video_folder)
+                               if f.lower().endswith((".mp4", ".mov"))]
+            abs_file_paths_str = ", ".join(
+                os.path.join(abs_video_folder, f).replace("\\", "/") for f in video_files_all
+            )
+
     log(f"[시작] 화자: {selected_speaker} | 지시: {cmd}")
+    log(f"[정보] 영상 경로: {abs_file_paths_str}")
 
     inputs = {
         "video_folder_path": abs_video_folder,
-        "video_count": len(video_files),
-        "video_files": file_list_str,
         "abs_video_paths": abs_file_paths_str,
         "user_prompt": cmd,
         "selected_speaker": selected_speaker,

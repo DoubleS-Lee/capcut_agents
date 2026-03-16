@@ -1,54 +1,84 @@
-# CapcutAgents260309 Crew
+# CapCut Agents - 감탄사 리액션 하이라이트 편집기
 
-Welcome to the CapcutAgents260309 Crew project, powered by [crewAI](https://crewai.com). This template is designed to help you set up a multi-agent AI system with ease, leveraging the powerful and flexible framework provided by crewAI. Our goal is to enable your agents to collaborate effectively on complex tasks, maximizing their collective intelligence and capabilities.
+AI 에이전트가 영상에서 화자의 감탄사·리액션 구간을 자동으로 찾아 CapCut 프로젝트로 만들어주는 도구입니다.
 
-## Installation
+---
 
-Ensure you have Python >=3.10 <3.14 installed on your system. This project uses [UV](https://docs.astral.sh/uv/) for dependency management and package handling, offering a seamless setup and execution experience.
+## 사전 요구사항
 
-First, if you haven't already, install uv:
+- **Python 3.10 ~ 3.13** ([python.org](https://www.python.org/downloads/))
+- **CapCut PC 버전** 설치
+- **NVIDIA GPU** (선택사항 — 없으면 CPU로 동작, STT 속도 느림)
 
+---
+
+## 설치 (최초 1회)
+
+### 1단계: 프로젝트 다운로드
 ```bash
-pip install uv
+git clone https://github.com/DoubleS-Lee/capcut_agents.git
+cd capcut_agents
+```
+또는 ZIP으로 다운로드 후 압축 해제
+
+### 2단계: 설치.bat 실행
+`설치.bat` 을 더블클릭하면 자동으로:
+- uv (패키지 관리자) 설치
+- 가상환경 생성 및 패키지 설치
+- `.env` 파일 생성
+
+### 3단계: API 키 입력
+`.env` 파일을 메모장으로 열어 입력:
+
+```
+GEMINI_API_KEY=여기에_키_입력
+HUGGINGFACE_TOKEN=여기에_토큰_입력
 ```
 
-Next, navigate to your project directory and install the dependencies:
+- **Gemini API 키**: [Google AI Studio](https://aistudio.google.com/) → Get API key
+- **HuggingFace 토큰**: [HuggingFace 설정](https://huggingface.co/settings/tokens) → New token (read 권한)
+  - 추가로 아래 모델 사용 동의 필요 (로그인 후 페이지에서 동의 버튼 클릭):
+  - [pyannote/speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1)
+  - [pyannote/segmentation-3.0](https://huggingface.co/pyannote/segmentation-3.0)
 
-(Optional) Lock the dependencies and install them by using the CLI command:
-```bash
-crewai install
+### 4단계: GPU 가속 설치 (선택사항, NVIDIA GPU 전용)
+`torch_cuda_설치.bat` 을 더블클릭
+
+---
+
+## 실행
+
+`실행.bat` 을 더블클릭
+
+---
+
+## 사용 방법
+
+1. **영상 추가** — 파일을 드래그앤드롭하거나 [파일 선택] 버튼 사용
+2. **① STT 추출** 버튼 클릭 — 영상에서 대사를 텍스트로 변환 (수 분 소요)
+3. **화자 선택** — 추출된 화자 목록에서 원하는 화자 선택
+4. **편집 지시사항** 입력 (예: "모든 리액션", "웃음과 감탄사만")
+5. **② 감탄사 편집 실행** 버튼 클릭
+6. CapCut을 재시작하면 홈 화면에 새 프로젝트가 나타남
+
+---
+
+## 폴더 구조
+
 ```
-### Customizing
-
-**Add your `OPENAI_API_KEY` into the `.env` file**
-
-- Modify `src/capcut_agents_260309/config/agents.yaml` to define your agents
-- Modify `src/capcut_agents_260309/config/tasks.yaml` to define your tasks
-- Modify `src/capcut_agents_260309/crew.py` to add your own logic, tools and specific args
-- Modify `src/capcut_agents_260309/main.py` to add custom inputs for your agents and tasks
-
-## Running the Project
-
-To kickstart your crew of AI agents and begin task execution, run this from the root folder of your project:
-
-```bash
-$ crewai run
+capcut_agents/
+├── 설치.bat              # 최초 설치
+├── 실행.bat              # 프로그램 시작
+├── torch_cuda_설치.bat   # GPU 가속 설치 (선택)
+├── gui.py               # GUI 메인
+├── mcp_server.py        # CapCut 프로젝트 생성 서버
+├── .env                 # API 키 설정 (git 미포함)
+├── .env.example         # .env 템플릿
+├── reference/           # CapCut 프로젝트 템플릿
+└── src/capcut_agents_260309/
+    ├── config/
+    │   ├── agents.yaml  # AI 에이전트 설정
+    │   └── tasks.yaml   # 작업 정의
+    └── tools/
+        └── stt_tool.py  # STT + 화자 분리 도구
 ```
-
-This command initializes the capcut_agents_260309 Crew, assembling the agents and assigning them tasks as defined in your configuration.
-
-This example, unmodified, will run the create a `report.md` file with the output of a research on LLMs in the root folder.
-
-## Understanding Your Crew
-
-The capcut_agents_260309 Crew is composed of multiple AI agents, each with unique roles, goals, and tools. These agents collaborate on a series of tasks, defined in `config/tasks.yaml`, leveraging their collective skills to achieve complex objectives. The `config/agents.yaml` file outlines the capabilities and configurations of each agent in your crew.
-
-## Support
-
-For support, questions, or feedback regarding the CapcutAgents260309 Crew or crewAI.
-- Visit our [documentation](https://docs.crewai.com)
-- Reach out to us through our [GitHub repository](https://github.com/joaomdmoura/crewai)
-- [Join our Discord](https://discord.com/invite/X4JWnZnxPb)
-- [Chat with our docs](https://chatg.pt/DWjSBZn)
-
-Let's create wonders together with the power and simplicity of crewAI.

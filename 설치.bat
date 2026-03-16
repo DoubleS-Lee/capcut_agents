@@ -9,16 +9,19 @@ echo.
 :: 1. uv 설치 확인
 where uv >nul 2>&1
 if errorlevel 1 (
-    echo [1/3] uv 가 없습니다. 설치 중...
-    pip install uv
+    echo [1/3] uv 가 없습니다. PowerShell 로 설치 중...
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
     if errorlevel 1 (
         echo.
-        echo [오류] pip 으로 uv 설치 실패.
+        echo [오류] uv 설치 실패.
         echo   수동 설치: https://docs.astral.sh/uv/getting-started/installation/
         echo   설치 후 이 파일을 다시 실행하세요.
         pause
         exit /b 1
     )
+    :: PATH 갱신 (현재 세션에 uv 경로 추가)
+    set "PATH=%USERPROFILE%\.local\bin;%PATH%"
+    set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
 )
 echo [1/3] uv 확인 완료
 

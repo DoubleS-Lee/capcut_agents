@@ -1,7 +1,8 @@
 from crewai.tools import BaseTool
 from typing import Type
 from pydantic import BaseModel, Field
-import requests # MCP 서버와 통신하기 위해 필요합니다
+import requests
+import os
 
 class CapCutToolInput(BaseModel):
     """캡컷 도구에 전달할 데이터의 형식입니다."""
@@ -30,7 +31,11 @@ class CapCutTool(BaseTool):
         # 2. 에이전트(Gemini)가 결정한 명령을 서버로 전송
         payload = {
             "action": command,
-            "params": {"description": details}
+            "params": {
+                "description": details,
+                "output_dir": os.environ.get("CAPCUT_OUTPUT_DIR", ""),
+                "video_name": os.environ.get("CAPCUT_VIDEO_NAME", ""),
+            }
         }
 
         try:

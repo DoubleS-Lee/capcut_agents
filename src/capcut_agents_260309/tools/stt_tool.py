@@ -3,20 +3,34 @@ import os
 # OpenMP 중복 로드 시 강제 종료되는 버그 방지
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# NVIDIA cuBLAS 및 cuDNN 라이브러리를 PATH에 강제 추가 (ctranslate2 런타임 충돌 방지)
+# CUDA DLL 경로 등록 (핸들을 모듈 전역에 보관해야 GC 해제 방지됨)
 import site
+_dll_dir_handles = []
 for sp in site.getsitepackages():
-    for nvidia_pkg in ['cublas', 'cudnn']:
-        bin_path = os.path.join(sp, 'nvidia', nvidia_pkg, 'bin')
-        if os.path.exists(bin_path):
-            os.environ['PATH'] = bin_path + os.pathsep + os.environ['PATH']
+    for sub in [os.path.join('torch', 'lib'), 'ctranslate2']:
+        p = os.path.join(sp, sub)
+        if os.path.exists(p):
+            try:
+                _dll_dir_handles.append(os.add_dll_directory(p))
+            except (AttributeError, OSError):
+                pass
+            if p not in os.environ.get('PATH', ''):
+                os.environ['PATH'] = p + os.pathsep + os.environ['PATH']
+    for pkg in ['cublas', 'cudnn', 'cusparse', 'cufft', 'curand', 'nvrtc']:
+        b = os.path.join(sp, 'nvidia', pkg, 'bin')
+        if os.path.exists(b):
+            try:
+                _dll_dir_handles.append(os.add_dll_directory(b))
+            except (AttributeError, OSError):
+                pass
+            if b not in os.environ.get('PATH', ''):
+                os.environ['PATH'] = b + os.pathsep + os.environ['PATH']
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from typing import Type
 import os
 from moviepy import VideoFileClip
-import tempfile
 from faster_whisper import WhisperModel
 from pyannote.audio import Pipeline
 import torch
@@ -44,8 +58,7 @@ class STTTool(BaseTool):
 
     def _run(self, video_path: str) -> str:
         global _whisper_model_cache, _diarization_pipeline_cache
-        import sys
-        
+
         if not os.path.exists(video_path):
             import json
             return json.dumps({"error": f"파일이 존재하지 않습니다. 경로를 확인하세요: {video_path}"}, ensure_ascii=False)
@@ -53,8 +66,8 @@ class STTTool(BaseTool):
         try:
             # 1. 임시 폴더에 오디오 파일(.wav) 추출
             print("[STT] 1. 오디오 추출 시작...", flush=True)
-            temp_dir = tempfile.gettempdir()
-            audio_path = os.path.join(temp_dir, "temp_extracted_audio_whisper.wav")
+            video_name = os.path.splitext(os.path.basename(video_path))[0]
+            audio_path = os.path.join(os.path.dirname(video_path), f"{video_name}.wav")
             
             with VideoFileClip(video_path) as video:
                 audio = video.audio
@@ -67,7 +80,14 @@ class STTTool(BaseTool):
             print("[STT] 2. 모델 로딩 (Whisper + Diarization)...", flush=True)
             # 2. 모델 로드
             if _whisper_model_cache is None:
-                _whisper_model_cache = WhisperModel("base", device="cuda", compute_type="float16")
+                force = os.environ.get("CAPCUT_FORCE_DEVICE", "")
+                if force in ("cuda", "cpu"):
+                    device = force
+                else:
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                compute_type = "float16" if device == "cuda" else "int8"
+                print(f"[STT] 디바이스: {device} / 연산 타입: {compute_type}", flush=True)
+                _whisper_model_cache = WhisperModel("base", device=device, compute_type=compute_type)
             model = _whisper_model_cache
 
             if _diarization_pipeline_cache is None:
@@ -96,7 +116,18 @@ class STTTool(BaseTool):
             diarization_result = None
             if _diarization_pipeline_cache:
                 print("[STT] 화자 분리 분석 중...", flush=True)
-                diarization_result = _diarization_pipeline_cache(audio_path)
+                # pyannote 4.x는 torchcodec으로 파일을 직접 읽으려 해서 실패함
+                # → scipy로 WAV 직접 로드 후 waveform dict 전달로 우회
+                from scipy.io import wavfile
+                sample_rate, wav_np = wavfile.read(audio_path)
+                if wav_np.ndim == 1:
+                    wav_np = wav_np[None, :]          # (1, samples)
+                else:
+                    wav_np = wav_np.T                 # (channels, samples)
+                waveform = torch.from_numpy(wav_np.astype("float32") / 32768.0)
+                diarization_result = _diarization_pipeline_cache(
+                    {"waveform": waveform, "sample_rate": sample_rate}
+                )
                 
                 # pyannote.audio v4.0 이상에서는 DiarizeOutput 객체를 반환하므로 내부 Annotation 객체로 변환
                 if hasattr(diarization_result, "speaker_diarization"):
@@ -151,8 +182,8 @@ class STTTool(BaseTool):
             return json.dumps(result_data, ensure_ascii=False, indent=2)
 
         except Exception as e:
-            import json
-            return json.dumps({"error": f"STT 변환 중 문제가 발생했습니다: {str(e)}"}, ensure_ascii=False)
+            import json, traceback
+            return json.dumps({"error": f"STT 변환 중 문제가 발생했습니다: {str(e)}", "traceback": traceback.format_exc()}, ensure_ascii=False)
             
     def _format_time(self, seconds: float) -> str:
         """초(float)를 MM:SS.ms (예: 01:23.456) 형식으로 변환"""

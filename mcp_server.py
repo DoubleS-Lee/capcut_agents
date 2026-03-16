@@ -12,10 +12,10 @@ from moviepy import VideoFileClip
 
 app = Flask(__name__)
 
-# [설정] 경로 고정
-BASE_DIR = r"D:\00.Google CLI\capcut_agents_260309"
+# [설정] 실행 파일 기준 동적 경로
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "reference", "com.lveditor.draft", "0226")
-OUTPUT_BASE_DIR = os.path.join(BASE_DIR, "output")
+OUTPUT_BASE_DIR = os.environ.get("CAPCUT_OUTPUT_DIR") or os.path.join(BASE_DIR, "output")
 
 video_metadata_cache = {}
 
@@ -277,9 +277,19 @@ def create_draft():
         ai_plan = extract_json(desc) or data
 
         # 2. 프로젝트 폴더 생성 (템플릿 복사)
-        timestamp = datetime.now().strftime("%H%M%S")
-        draft_name = f"Reaction_{timestamp}_{str(uuid.uuid4())[:4]}"
-        new_draft_dir = os.path.join(OUTPUT_BASE_DIR, draft_name)
+        req_output_dir = data.get("params", {}).get("output_dir", "")
+        effective_output = req_output_dir if req_output_dir else OUTPUT_BASE_DIR
+        os.makedirs(effective_output, exist_ok=True)
+
+        base_name = data.get("params", {}).get("video_name", "") or os.environ.get("CAPCUT_VIDEO_NAME", "") or "Reaction"
+        draft_name = base_name
+        new_draft_dir = os.path.join(effective_output, draft_name)
+        # 같은 이름 폴더가 이미 있으면 _2, _3 ... 으로 증가
+        counter = 2
+        while os.path.exists(new_draft_dir):
+            draft_name = f"{base_name}_{counter}"
+            new_draft_dir = os.path.join(effective_output, draft_name)
+            counter += 1
 
         if os.path.exists(TEMPLATE_DIR):
             shutil.copytree(TEMPLATE_DIR, new_draft_dir)

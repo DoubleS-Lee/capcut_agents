@@ -137,6 +137,61 @@ def run():
         raise Exception(f"An error occurred while running the crew: {e}")
 
 
+def run_programmatic(video_folder: str, cmd: str, selected_speaker: str,
+                     output_dir: str = "", stt_data: str = "",
+                     progress_cb=None):
+    """
+    GUI에서 직접 호출하는 함수. input() 없이 모든 파라미터를 인수로 받음.
+    progress_cb(message): 로그 메시지를 GUI로 전달하는 콜백.
+    """
+    import os, json
+
+    def log(msg):
+        print(msg, flush=True)
+        if progress_cb:
+            progress_cb(msg)
+
+    if output_dir:
+        os.environ["CAPCUT_OUTPUT_DIR"] = output_dir
+
+    abs_video_folder = os.path.abspath(video_folder).replace("\\", "/")
+    video_files = [f for f in os.listdir(abs_video_folder)
+                   if f.lower().endswith((".mp4", ".mov"))]
+    if not video_files:
+        log(f"[에러] '{abs_video_folder}' 폴더에 영상 파일이 없습니다.")
+        return
+
+    file_list_str = ", ".join(video_files)
+    abs_file_paths_str = ", ".join(
+        os.path.join(abs_video_folder, f).replace("\\", "/") for f in video_files
+    )
+
+    # stt_data가 없으면 파일에서 읽기
+    if not stt_data:
+        stt_path = os.path.join(abs_video_folder, "stt_result.json")
+        if os.path.exists(stt_path):
+            with open(stt_path, "r", encoding="utf-8") as f:
+                stt_data = f.read()
+        else:
+            log("[에러] stt_result.json 파일을 찾을 수 없습니다. 먼저 STT를 실행하세요.")
+            return
+
+    log(f"[시작] 화자: {selected_speaker} | 지시: {cmd}")
+
+    inputs = {
+        "video_folder_path": abs_video_folder,
+        "video_count": len(video_files),
+        "video_files": file_list_str,
+        "abs_video_paths": abs_file_paths_str,
+        "user_prompt": cmd,
+        "selected_speaker": selected_speaker,
+        "stt_data": stt_data.replace("{", "{{").replace("}", "}}"),
+    }
+
+    CapcutAgents260309().crew().kickoff(inputs=inputs)
+    log("[완료] 캡컷 프로젝트 생성 완료!")
+
+
 def train():
     """
     Train the crew for a given number of iterations.
